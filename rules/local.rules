@@ -1,0 +1,42 @@
+# ICMP Echo Request detection
+alert icmp any any -> any any (
+    msg:"ICMP Test";
+    sid:1000001;
+    rev:1;
+)
+# Basic oversized ICMP detection (catches most Ping of Death variants)
+alert icmp any any -> any any (
+    msg:"ICMP Ping of Death Detected";
+    dsize:>1000;
+    sid:1000002;
+)
+# Fragmented ping detection (catches modern attacks)
+alert icmp any any -> any any (
+    msg:"ICMP Fragmented Ping Attack";
+    fragbits:M;
+    sid:1000003;
+)
+# ICMP Flood Detection Rule
+alert icmp any any -> any any (
+    msg:"ICMP Flood Attack Detected";
+    detection_filter:track by_src, count 100, seconds 1;
+    sid:1000004;
+    rev:1;
+)
+# SYN Flood Attack Rule
+alert tcp any any -> any any (
+    msg:"SYN Flood Attack Detected";
+    flags:S;
+    detection_filter:track by_src, count 100, seconds 1;
+    flow:stateless;
+    sid:1000005;
+    rev:1;
+    metadata:service http;
+)
+# UDP Flood Attack Rule (targeting port 445)
+alert udp any any -> any 445 (
+    msg:"UDP Flood Attack Detected";
+    detection_filter:track by_dst, count 300, seconds 1;
+    sid:1000006;
+    rev:1;
+)
