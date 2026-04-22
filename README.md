@@ -20,16 +20,17 @@ This lab demonstrates how to:
 Perfect for blue team training, SOC analysts, and cybersecurity students.
 
 ---
+## Lab Architecture
 
-## 🏗️ Lab Architecture
-┌─────────────┐      ┌─────────────┐      ┌──────────────┐
-│ Kali        │      │    Snort    │      │Metasploitable│
-│ (Attacker)  │◄────►│  (IDS/IPS)  │◄────►│   (Target)   │
-└─────────────┘      └─────────────┘      └──────────────┘
-       │                    │                    │
-       └────────────────────┴────────────────────┘
+All three VMs are connected to the same virtual network. Snort's network interface is set to **promiscuous mode** so it can see all traffic between Kali and Metasploitable.
+
+| Role       | VM              |
+|------------|-----------------|
+| Attacker   | Kali Linux      |
+| IDS/IPS    | Snort (Ubuntu)  |
+| Target     | Metasploitable 2 |
+
 Same NAT / Host‑only Network
-
 
 All three VMs are connected to the same virtual network. Snort’s network interface is set to **promiscuous mode** so it can see all traffic between Kali and Metasploitable.
 
@@ -53,11 +54,12 @@ All three VMs are connected to the same virtual network. Snort’s network inter
 
 2. **Clone this repository** inside the Ubuntu VM:
 
-   ```bash
-   sudo apt update && sudo apt install git -y
-   git clone https://github.com/alitalhahere/Attack-Detection-Lab.git
-   cd Attack-Detection-Lab
+```bash
+sudo apt update && sudo apt install git -y
+git clone https://github.com/alitalhahere/Attack-Detection-Lab.git
+cd Attack-Detection-Lab
 ```
+
 Run the Snort installation script:
 ```bash
 chmod +x install_snort3.sh
@@ -76,34 +78,50 @@ snort-run
 
 You will see no output – Snort runs quietly in the background. Press Ctrl+C to stop and view alerts.
 
-## ⚔️ Testing with Attacks
-From your Kali VM, run these commands to Snort VM or Metasploitable-2 VM IP Addresses:
+---
 
-Attack		Command						Expected Snort Alert
-_________________________________________________________________________________________________________
-Basic ping	ping -c 3 <snort_ip>				ICMP Test (sid:1000001)
-Ping of Death	ping -l 65500 -c 1 <snort_ip>			ICMP Ping of Death Detected (sid:1000002)
-ICMP Flood	sudo hping3 --icmp --flood <snort_ip>		ICMP Flood Attack Detected (sid:1000004)
-SYN Flood	sudo hping3 -S --flood <snort_ip>		SYN Flood Attack Detected (sid:1000005)
-UDP Flood	sudo hping3 --udp -p 445 --flood <snort_ip>	UDP Flood Attack Detected (sid:1000006)
+## Testing with Attacks
 
-⚠️ Flood attacks generate heavy traffic. Use them only in this isolated lab.
+From your Kali VM, run these commands against the **Snort VM IP** (for ICMP‑based attacks) or **Metasploitable‑2 IP** (for service‑based attacks). 
+
+Replace `<target_ip>` with the appropriate IP address.
+
+
+| Attack           | Command                                                | Expected Snort Alert                         |
+|------------------|--------------------------------------------------------|----------------------------------------------|
+| Basic ping       | `ping -c 3 <target_ip>`                                | ICMP Test (sid:1000001)                      |
+| Ping of Death    | `ping -l 65500 -c 1 <target_ip>`                      | ICMP Ping of Death Detected (sid:1000002)    |
+| ICMP Flood       | `sudo hping3 --icmp --flood <target_ip>`              | ICMP Flood Attack Detected (sid:1000004)     |
+| SYN Flood        | `sudo hping3 -S --flood <target_ip>`                  | SYN Flood Attack Detected (sid:1000005)      |
+| UDP Flood        | `sudo hping3 --udp -p 445 --flood <target_ip>`        | UDP Flood Attack Detected (sid:1000006)      |
+
+
+⚠️ **Warning:** Flood attacks generate heavy traffic. Use them only in this isolated lab environment.
 
 After each attack, press Ctrl+C on the Snort terminal. The alerts will appear immediately.
 
+---
+
 ## 📝 Custom Snort Rules
 All custom rules are stored in /usr/local/etc/snort/rules/local.rules.
+
 They are also available in this repository under rules/local.rules.
 
+---
+
 ## 🛠️ Troubleshooting
-Snort doesn’t see any traffic: Ensure the Snort VM’s interface is in promiscuous mode and that all VMs are on the same network.
 
-snort-run command not found: Run source ~/.bashrc or open a new terminal.
+**Snort doesn’t see any traffic:** Ensure the Snort VM’s interface is in promiscuous mode and that all VMs are on the same network.
 
-Installation fails: Check your internet connection and that you are running Ubuntu 20.04/22.04.
+**snort-run command not found:** Run source ~/.bashrc or open a new terminal.
+
+**Installation fails:** Check your internet connection and that you are running Ubuntu 20.04/22.04.
+
+---
 
 ## 👤 Author
-Ali Talha – CEH | GitHub
+
+Ali Talha – [LinkedIn](https://www.linkedin.com/in/imalitalha)
 
 Build your own IDS lab – detect before you get hacked.
 
