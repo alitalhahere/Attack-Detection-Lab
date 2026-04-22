@@ -1,7 +1,7 @@
 #!/bin/bash
 # Snort 3 Installation Script for Ubuntu 20.04/22.04
 # Fully automated: builds Snort 3, configures custom rules, updates snort.lua (ips section only),
-# and adds a convenient alias 'snort-run' to start Snort on eth0.
+# detects network interface, and adds 'snort-run' alias for both user and root.
 
 set -e  # Exit on any error
 
@@ -153,35 +153,51 @@ EOF
 echo "[+] Validating Snort configuration..."
 snort -c /usr/local/etc/snort/snort.lua -T
 
-# 13. Add convenient alias 'snort-run' to user's .bashrc (preserve existing, avoid duplicates)
-echo "[+] Adding alias 'snort-run' to ~/.bashrc..."
-ALIAS_CMD="alias snort-run='sudo snort -c /usr/local/etc/snort/snort.lua -i eth0 -A alert_fast -l /var/log/snort -k none -q'"
+# 13. Auto-detect network interface and add alias for both user and root
+echo "[+] Detecting active network interface..."
+# Get the first non-loopback interface (ignore lo, docker, veth)
+INTERFACE=$(ip link show | grep -v lo | grep -v docker | grep -v veth | grep -E '^[0-9]+: ' | head -1 | cut -d: -f2 | xargs)
+if [ -z "$INTERFACE" ]; then
+    INTERFACE="eth0"  # fallback
+    echo "[!] Could not auto-detect, using fallback: $INTERFACE"
+else
+    echo "[+] Detected interface: $INTERFACE"
+fi
 
-# Determine the real user's home directory (even when running with sudo)
+ALIAS_CMD="alias snort-run='sudo snort -c /usr/local/etc/snort/snort.lua -i $INTERFACE -A alert_fast -l /var/log/snort -k none -q'"
+
+# Add alias for the normal user (who ran sudo)
 if [ -n "$SUDO_USER" ]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
 else
     USER_HOME="$HOME"
 fi
 
-BASHRC="$USER_HOME/.bashrc"
-if [ -f "$BASHRC" ]; then
-    if ! grep -Fxq "$ALIAS_CMD" "$BASHRC"; then
-        echo "$ALIAS_CMD" >> "$BASHRC"
-        echo "[+] Alias added to $BASHRC"
+if [ -f "$USER_HOME/.bashrc" ]; then
+    if ! grep -Fxq "$ALIAS_CMD" "$USER_HOME/.bashrc"; then
+        echo "$ALIAS_CMD" >> "$USER_HOME/.bashrc"
+        echo "[+] Alias added to $USER_HOME/.bashrc for user $SUDO_USER"
     else
-        echo "[+] Alias already exists in $BASHRC"
+        echo "[+] Alias already exists in $USER_HOME/.bashrc"
     fi
 else
-    echo "$ALIAS_CMD" > "$BASHRC"
-    echo "[+] Created $BASHRC and added alias"
+    echo "$ALIAS_CMD" > "$USER_HOME/.bashrc"
+    echo "[+] Created $USER_HOME/.bashrc and added alias"
+fi
+
+# Add alias for root user
+if ! grep -Fxq "$ALIAS_CMD" /root/.bashrc 2>/dev/null; then
+    echo "$ALIAS_CMD" >> /root/.bashrc
+    echo "[+] Alias added to /root/.bashrc"
+else
+    echo "[+] Alias already exists in /root/.bashrc"
 fi
 
 echo ""
 echo "[+] Snort 3 installation completed successfully!"
-echo "To start Snort on eth0, simply type:  snort-run"
+echo "Detected interface: $INTERFACE"
+echo "To start Snort on $INTERFACE, any user can now type:  snort-run"
 echo "(You may need to restart your terminal or run 'source ~/.bashrc' first.)"
 echo ""
 echo "Test with a ping from another machine:"
 echo "  ping -c 3 <IP_of_snort_machine>"
-echo "Then press Ctrl+C to stop Snort and see alerts."
